@@ -132,23 +132,25 @@ public class BUtil {
 	 * @param onlyIfStronger Optionally only overwrite if the new one is stronger, i.e. has higher level or longer duration
 	 */
 	public static void reapplyPotionEffect(Player player, PotionEffect effect, boolean onlyIfStronger) {
-		final PotionEffectType type = effect.getType();
-		if (player.hasPotionEffect(type)) {
-			PotionEffect plEffect;
-			if (P.use1_11) {
-				plEffect = player.getPotionEffect(type);
-			} else {
-				plEffect = player.getActivePotionEffects().stream().filter(e -> e.getType().equals(type)).findAny().get();
+		Bukkit.getServer().getRegionScheduler().run(P.p, player.getLocation(), val -> {
+			final PotionEffectType type = effect.getType();
+			if (player.hasPotionEffect(type)) {
+				PotionEffect plEffect;
+				if (P.use1_11) {
+					plEffect = player.getPotionEffect(type);
+				} else {
+					plEffect = player.getActivePotionEffects().stream().filter(e -> e.getType().equals(type)).findAny().get();
+				}
+				if (!onlyIfStronger ||
+					plEffect.getAmplifier() < effect.getAmplifier() ||
+					(plEffect.getAmplifier() == effect.getAmplifier() && plEffect.getDuration() < effect.getDuration())) {
+					player.removePotionEffect(type);
+				} else {
+					return;
+				}
 			}
-			if (!onlyIfStronger ||
-				plEffect.getAmplifier() < effect.getAmplifier() ||
-				(plEffect.getAmplifier() == effect.getAmplifier() && plEffect.getDuration() < effect.getDuration())) {
-				player.removePotionEffect(type);
-			} else {
-				return;
-			}
-		}
-		effect.apply(player);
+			effect.apply(player);
+		});
 	}
 
 	/**

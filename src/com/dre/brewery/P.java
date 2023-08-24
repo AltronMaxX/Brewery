@@ -167,17 +167,17 @@ public class P extends JavaPlugin {
 		}
 
 		// Heartbeat
-		p.getServer().getScheduler().runTaskTimer(p, new BreweryRunnable(), 650, 1200);
-		p.getServer().getScheduler().runTaskTimer(p, new DrunkRunnable(), 120, 120);
+		p.getServer().getGlobalRegionScheduler().runAtFixedRate(p, val -> new BreweryRunnable().run(), 650, 1200);
+		p.getServer().getGlobalRegionScheduler().runAtFixedRate(p, val -> new DrunkRunnable().run(), 120, 120);
 
 		if (use1_9) {
-			p.getServer().getScheduler().runTaskTimer(p, new CauldronParticles(), 1, 1);
+			p.getServer().getGlobalRegionScheduler().runAtFixedRate(p, val ->  new CauldronParticles().run(), 1, 1);
 		}
 
 		// Disable Update Check for older mc versions
 		if (use1_14 && BConfig.updateCheck) {
 			try {
-				p.getServer().getScheduler().runTaskLaterAsynchronously(p, new UpdateChecker(), 135);
+				p.getServer().getGlobalRegionScheduler().runDelayed(p, val ->  new UpdateChecker().run(), 135);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -193,7 +193,7 @@ public class P extends JavaPlugin {
 		HandlerList.unregisterAll(this);
 
 		// Stop shedulers
-		getServer().getScheduler().cancelTasks(this);
+		getServer().getGlobalRegionScheduler().cancelTasks(this);
 
 		if (p == null) {
 			return;
@@ -395,7 +395,7 @@ public class P extends JavaPlugin {
 				}
 			}
 			long t2 = System.nanoTime();
-			Barrel.onUpdate();// runs every min to check and update ageing time
+			//Barrel.onUpdate();// runs every min to check and update ageing time
 			long t3 = System.nanoTime();
 			if (use1_14) MCBarrel.onUpdate();
 			if (BConfig.useBlocklocker) BlocklockerBarrel.clearBarrelSign();

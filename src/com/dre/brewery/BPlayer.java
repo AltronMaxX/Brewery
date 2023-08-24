@@ -9,8 +9,10 @@ import com.dre.brewery.lore.BrewLore;
 import com.dre.brewery.recipe.BEffect;
 import com.dre.brewery.utility.BUtil;
 import com.dre.brewery.utility.PermissionUtil;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -32,7 +34,7 @@ import java.util.*;
 public class BPlayer {
 	private static Map<String, BPlayer> players = new HashMap<>();// Players uuid and BPlayer
 	private static Map<Player, Integer> pTasks = new HashMap<>();// Player and count
-	private static int taskId;
+	private static ScheduledTask task;
 	private static Random pukeRand;
 
 	private final String uuid;
@@ -218,8 +220,8 @@ public class BPlayer {
 		try {
 			// It this returns false, then the Action Bar is not supported. Do not repeat the message as it was sent into chat
 			if (sendDrunkenessMessage(player)) {
-				P.p.getServer().getScheduler().scheduleSyncDelayedTask(P.p, () -> sendDrunkenessMessage(player), 40);
-				P.p.getServer().getScheduler().scheduleSyncDelayedTask(P.p, () -> sendDrunkenessMessage(player), 80);
+				P.p.getServer().getGlobalRegionScheduler().runDelayed(P.p, val -> sendDrunkenessMessage(player), 40);
+				P.p.getServer().getGlobalRegionScheduler().runDelayed(P.p, val -> sendDrunkenessMessage(player), 80);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -303,7 +305,7 @@ public class BPlayer {
 		b.append("§7]");
 		final String text = b.toString();
 		if (hangover && P.use1_11) {
-			P.p.getServer().getScheduler().scheduleSyncDelayedTask(P.p, () -> player.sendTitle("", text, 30, 100, 90), 160);
+			P.p.getServer().getGlobalRegionScheduler().runDelayed(P.p, val -> player.sendTitle("", text, 30, 100, 90), 160);
 			return false;
 		}
 		try {
@@ -321,7 +323,7 @@ public class BPlayer {
 		drunkeness = 100;
 		syncToSQL(false);
 		if (BConfig.overdrinkKick && !player.hasPermission("brewery.bypass.overdrink")) {
-			P.p.getServer().getScheduler().scheduleSyncDelayedTask(P.p, () -> passOut(player), 1);
+			P.p.getServer().getGlobalRegionScheduler().runDelayed(P.p, val -> passOut(player), 1);
 		} else {
 			addPuke(player, 60 + (int) (Math.random() * 60.0));
 			P.p.msg(player, P.p.languageReader.get("Player_CantDrink"));
@@ -467,7 +469,7 @@ public class BPlayer {
 			return;
 		}
 		// delayed login event as the player is not fully accessible pre login
-		P.p.getServer().getScheduler().runTaskLater(P.p, () -> login(player), 1L);
+		P.p.getServer().getGlobalRegionScheduler().runDelayed(P.p, val -> login(player), 1L);
 	}
 
 	// he may be having a hangover
@@ -573,7 +575,7 @@ public class BPlayer {
 		BUtil.reapplyPotionEffect(player, PotionEffectType.HUNGER.createEffect(80, 4), true);
 
 		if (pTasks.isEmpty()) {
-			taskId = P.p.getServer().getScheduler().scheduleSyncRepeatingTask(P.p, BPlayer::pukeTask, 1L, 1L);
+			task = P.p.getServer().getRegionScheduler().runAtFixedRate(P.p, player.getLocation(), val -> BPlayer.pukeTask(), 1L, 1L);
 		}
 		pTasks.put(player, event.getCount());
 	}
@@ -594,7 +596,7 @@ public class BPlayer {
 			}
 		}
 		if (pTasks.isEmpty()) {
-			P.p.getServer().getScheduler().cancelTask(taskId);
+			task.cancel();
 		}
 	}
 
@@ -652,29 +654,31 @@ public class BPlayer {
 	}
 
 	public void drunkEffects(Player player) {
-		int duration = 10 - getQuality();
-		duration += drunkeness / 2;
-		duration *= 5;
-		if (duration > 240) {
+		Bukkit.getServer().getRegionScheduler().run(P.p, player.getLocation(), val -> {
+			int duration = 10 - getQuality();
+			duration += drunkeness / 2;
 			duration *= 5;
-		} else if (duration < 115) {
-			duration = 115;
-		}
-		if (!P.use1_14) {
-			duration *= 4;
-		}
-		List<PotionEffect> l = new ArrayList<>(1);
-		l.add(PotionEffectType.CONFUSION.createEffect(duration, 0));
+			if (duration > 240) {
+				duration *= 5;
+			} else if (duration < 115) {
+				duration = 115;
+			}
+			if (!P.use1_14) {
+				duration *= 4;
+			}
+			List<PotionEffect> l = new ArrayList<>(1);
+			l.add(PotionEffectType.CONFUSION.createEffect(duration, 0));
 
-		PlayerEffectEvent event = new PlayerEffectEvent(player, PlayerEffectEvent.EffectType.ALCOHOL, l);
-		P.p.getServer().getPluginManager().callEvent(event);
-		l = event.getEffects();
-		if (event.isCancelled() || l == null) {
-			return;
-		}
-		for (PotionEffect effect : l) {
-			effect.apply(player);
-		}
+			PlayerEffectEvent event = new PlayerEffectEvent(player, PlayerEffectEvent.EffectType.ALCOHOL, l);
+			P.p.getServer().getPluginManager().callEvent(event);
+			l = event.getEffects();
+			if (event.isCancelled() || l == null) {
+				return;
+			}
+			for (PotionEffect effect : l) {
+				effect.apply(player);
+			}
+		});
 	}
 
 	public static List<PotionEffect> getQualityEffects(int quality, int brewAlc) {

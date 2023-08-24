@@ -7,6 +7,7 @@ import com.dre.brewery.recipe.RecipeItem;
 import com.dre.brewery.utility.BUtil;
 import com.dre.brewery.utility.LegacyUtil;
 import com.dre.brewery.utility.Tuple;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -21,6 +22,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BCauldron {
 	public static final byte EMPTY = 0, SOME = 1, FULL = 2;
@@ -56,20 +58,23 @@ public class BCauldron {
 	 * @return false if Cauldron needs to be removed
 	 */
 	public boolean onUpdate() {
-		// add a minute to cooking time
-		if (!BUtil.isChunkLoaded(block)) {
-			increaseState();
-		} else {
-			if (!LegacyUtil.isWaterCauldron(block.getType())) {
-				// Catch any WorldEdit etc. removal
-				return false;
-			}
-			// Check if fire still alive
-			if (LegacyUtil.isCauldronHeatsource(block.getRelative(BlockFace.DOWN))) {
+		AtomicBoolean retVal = new AtomicBoolean(true);
+		ScheduledTask task = Bukkit.getServer().getRegionScheduler().run(P.p, block.getLocation(), val -> {
+			if (!BUtil.isChunkLoaded(block)) {
 				increaseState();
+			} else {
+				if (!LegacyUtil.isWaterCauldron(block.getType())) {
+					// Catch any WorldEdit etc. removal
+					retVal.set(false);
+				}
+				// Check if fire still alive
+				if (LegacyUtil.isCauldronHeatsource(block.getRelative(BlockFace.DOWN))) {
+					increaseState();
+				}
 			}
-		}
-		return true;
+		});
+
+		return retVal.get();
 	}
 
 	/**
@@ -249,36 +254,38 @@ public class BCauldron {
 	}
 
 	public void cookEffect() {
-		if (BUtil.isChunkLoaded(block) && LegacyUtil.isCauldronHeatsource(block.getRelative(BlockFace.DOWN))) {
-			Color color = getParticleColor();
-			// Colorable spirally spell, 0 count enables color instead of the offset variables
-			// Configurable RGB color. The last parameter seems to control the hue and motion, but i couldn't find
-			// how exactly in the client code. 1025 seems to be the best for color brightness and upwards motion
-			block.getWorld().spawnParticle(Particle.SPELL_MOB, getRandParticleLoc(), 0,
-				((double) color.getRed()) / 255.0,
-				((double) color.getGreen()) / 255.0,
-				((double) color.getBlue()) / 255.0,
-				1025.0);
+		Bukkit.getServer().getRegionScheduler().run(P.p, block.getLocation(), val -> {
+			if (BUtil.isChunkLoaded(block) && LegacyUtil.isCauldronHeatsource(block.getRelative(BlockFace.DOWN))) {
+				Color color = getParticleColor();
+				// Colorable spirally spell, 0 count enables color instead of the offset variables
+				// Configurable RGB color. The last parameter seems to control the hue and motion, but i couldn't find
+				// how exactly in the client code. 1025 seems to be the best for color brightness and upwards motion
+				block.getWorld().spawnParticle(Particle.SPELL_MOB, getRandParticleLoc(), 0,
+					((double) color.getRed()) / 255.0,
+					((double) color.getGreen()) / 255.0,
+					((double) color.getBlue()) / 255.0,
+					1025.0);
 
-			if (BConfig.minimalParticles) {
-				return;
-			}
+				if (BConfig.minimalParticles) {
+					return;
+				}
 
-			if (particleRandom.nextFloat() > 0.85) {
-				// Dark pixely smoke cloud at 0.4 random in x and z
-				// 0 count enables direction, send to y = 1 with speed 0.09
-				block.getWorld().spawnParticle(Particle.SMOKE_LARGE, getRandParticleLoc(), 0, 0, 1, 0, 0.09);
-			}
-			if (particleRandom.nextFloat() > 0.2) {
-				// A Water Splash with 0.2 offset in x and z
-				block.getWorld().spawnParticle(Particle.WATER_SPLASH, particleLocation, 1, 0.2, 0, 0.2);
-			}
+				if (particleRandom.nextFloat() > 0.85) {
+					// Dark pixely smoke cloud at 0.4 random in x and z
+					// 0 count enables direction, send to y = 1 with speed 0.09
+					block.getWorld().spawnParticle(Particle.SMOKE_LARGE, getRandParticleLoc(), 0, 0, 1, 0, 0.09);
+				}
+				if (particleRandom.nextFloat() > 0.2) {
+					// A Water Splash with 0.2 offset in x and z
+					block.getWorld().spawnParticle(Particle.WATER_SPLASH, particleLocation, 1, 0.2, 0, 0.2);
+				}
 
-			if (P.use1_13 && particleRandom.nextFloat() > 0.4) {
-				// Two hovering pixely dust clouds, a bit offset and with DustOptions to give some color and size
-				block.getWorld().spawnParticle(Particle.REDSTONE, particleLocation, 2, 0.15, 0.2, 0.15, new Particle.DustOptions(color, 1.5f));
+				if (P.use1_13 && particleRandom.nextFloat() > 0.4) {
+					// Two hovering pixely dust clouds, a bit offset and with DustOptions to give some color and size
+					block.getWorld().spawnParticle(Particle.REDSTONE, particleLocation, 2, 0.15, 0.2, 0.15, new Particle.DustOptions(color, 1.5f));
+				}
 			}
-		}
+		});
 	}
 
 	private Location getRandParticleLoc() {
@@ -441,7 +448,7 @@ public class BCauldron {
 				if (event.getHand() == EquipmentSlot.HAND) {
 					final UUID id = player.getUniqueId();
 					plInteracted.add(id);
-					P.p.getServer().getScheduler().runTask(P.p, () -> plInteracted.remove(id));
+					P.p.getServer().getGlobalRegionScheduler().run(P.p, val -> plInteracted.remove(id));
 				} else if (event.getHand() == EquipmentSlot.OFF_HAND) {
 					if (!plInteracted.remove(player.getUniqueId())) {
 						item = player.getInventory().getItemInMainHand();
@@ -563,7 +570,7 @@ public class BCauldron {
 	// bukkit bug not updating the inventory while executing event, have to
 	// schedule the give
 	public static void giveItem(final Player player, final ItemStack item) {
-		P.p.getServer().getScheduler().runTaskLater(P.p, () -> player.getInventory().addItem(item), 1L);
+		P.p.getServer().getGlobalRegionScheduler().runDelayed(P.p, val -> player.getInventory().addItem(item), 1L);
 	}
 
 }

@@ -48,7 +48,6 @@ public class DataSave extends BukkitRunnable {
 					if (System.currentTimeMillis() - time > 50000) {
 						P.p.errorLog("Old Data took too long to load! Mutex: " + BData.dataMutex.get());
 						try {
-							cancel();
 							read.cancel();
 						} catch (IllegalStateException ignored) {
 						}
@@ -60,10 +59,6 @@ public class DataSave extends BukkitRunnable {
 				oldWorldData = read.getData();
 			} else {
 				oldWorldData = new YamlConfiguration();
-			}
-			try {
-				cancel();
-			} catch (IllegalStateException ignored) {
 			}
 			BData.worldData = null;
 
@@ -129,7 +124,7 @@ public class DataSave extends BukkitRunnable {
 			P.p.debugLog("saving: " + ((System.nanoTime() - saveTime) / 1000000.0) + "ms");
 
 			if (P.p.isEnabled()) {
-				P.p.getServer().getScheduler().runTaskAsynchronously(P.p, new WriteData(data, worldData));
+				P.p.getServer().getGlobalRegionScheduler().run(P.p, val -> new WriteData(data, worldData).run());
 			} else {
 				new WriteData(data, worldData).run();
 			}
@@ -163,7 +158,6 @@ public class DataSave extends BukkitRunnable {
 			read.run();
 		}
 		if (!collected) {
-			cancel();
 			run();
 		}
 	}

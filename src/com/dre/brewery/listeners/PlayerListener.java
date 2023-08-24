@@ -142,7 +142,7 @@ public class PlayerListener implements Listener {
 					}
 					if (useSlot != -1) {
 						inv.setHeldItemSlot(useSlot);
-						P.p.getServer().getScheduler().scheduleSyncDelayedTask(P.p, () -> player.getInventory().setHeldItemSlot(held), 2);
+						P.p.getServer().getGlobalRegionScheduler().runDelayed(P.p, val -> player.getInventory().setHeldItemSlot(held), 2);
 					}
 				}
 

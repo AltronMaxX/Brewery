@@ -1,6 +1,7 @@
 package com.dre.brewery;
 
 import com.dre.brewery.lore.BrewLore;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -29,7 +30,7 @@ public class BDistiller {
 	private static final int DISTILLTIME = 400;
 	private static Map<Block, BDistiller> trackedDistillers = new HashMap<>();
 
-	private int taskId;
+	private ScheduledTask task;
 	private int runTime = -1;
 	private int brewTime = -1;
 	private Block standBlock;
@@ -41,11 +42,11 @@ public class BDistiller {
 	}
 
 	public void cancelDistill() {
-		Bukkit.getScheduler().cancelTask(taskId); // cancel prior
+		task.cancel();
 	}
 
 	public void start() {
-		taskId = new DistillRunnable().runTaskTimer(P.p, 2L, 1L).getTaskId();
+		task = Bukkit.getServer().getGlobalRegionScheduler().runAtFixedRate(P.p, val -> new DistillRunnable().run(), 2L, 1L);
 	}
 
 	public static void distillerClick(InventoryClickEvent event) {
@@ -172,38 +173,38 @@ public class BDistiller {
 
 		@Override
 		public void run() {
-			BlockState now = standBlock.getState();
-			if (now instanceof BrewingStand) {
-				BrewingStand stand = (BrewingStand) now;
-				if (brewTime == -1) { // check at the beginning for distillables
-					if (!prepareForDistillables(stand)) {
-						return;
+			Bukkit.getServer().getRegionScheduler().run(P.p, standBlock.getLocation(), val -> {
+				BlockState now = standBlock.getState();
+				if (now instanceof BrewingStand) {
+					BrewingStand stand = (BrewingStand) now;
+					if (brewTime == -1) { // check at the beginning for distillables
+						if (!prepareForDistillables(stand)) {
+							return;
+						}
 					}
-				}
 
-				brewTime--; // count down.
-				stand.setBrewingTime((int) ((float) brewTime / ((float) runTime / (float) DISTILLTIME)) + 1);
+					brewTime--; // count down.
+					stand.setBrewingTime((int) ((float) brewTime / ((float) runTime / (float) DISTILLTIME)) + 1);
 
-				if (brewTime <= 1) { // Done!
-					contents = getDistillContents(stand.getInventory()); // Get the contents again at the end just in case
-					stand.setBrewingTime(0);
-					stand.update();
-					if (!runDistill(stand.getInventory(), contents)) {
-						this.cancel();
-						trackedDistillers.remove(standBlock);
-						P.p.debugLog("All done distilling");
+					if (brewTime <= 1) { // Done!
+						contents = getDistillContents(stand.getInventory()); // Get the contents again at the end just in case
+						stand.setBrewingTime(0);
+						stand.update();
+						if (!runDistill(stand.getInventory(), contents)) {
+							trackedDistillers.remove(standBlock);
+							P.p.debugLog("All done distilling");
+						} else {
+							brewTime = -1; // go again.
+							P.p.debugLog("Can distill more! Continuing.");
+						}
 					} else {
-						brewTime = -1; // go again.
-						P.p.debugLog("Can distill more! Continuing.");
+						stand.update();
 					}
 				} else {
-					stand.update();
+					trackedDistillers.remove(standBlock);
+					P.p.debugLog("The block was replaced; not a brewing stand.");
 				}
-			} else {
-				this.cancel();
-				trackedDistillers.remove(standBlock);
-				P.p.debugLog("The block was replaced; not a brewing stand.");
-			}
+			});
 		}
 
 		private boolean prepareForDistillables(BrewingStand stand) {
@@ -233,7 +234,6 @@ public class BDistiller {
 					}
 				case 0:
 					// No custom potion, cancel and ignore
-					this.cancel();
 					trackedDistillers.remove(standBlock);
 					showAlc(inventory, contents);
 					P.p.debugLog("nothing to distill");

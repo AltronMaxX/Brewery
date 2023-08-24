@@ -1,5 +1,6 @@
 package com.dre.brewery;
 
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
@@ -12,7 +13,6 @@ import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.*;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Iterator;
@@ -30,7 +30,7 @@ public class BSealer implements InventoryHolder {
 	private final Player player;
 	private short[] slotTime = new short[9];
 	private ItemStack[] contents = null;
-	private BukkitTask task;
+	private ScheduledTask task;
 
 	public BSealer(Player player) {
 		this.player = player;
@@ -56,7 +56,7 @@ public class BSealer implements InventoryHolder {
 	public void clickInv() {
 		contents = null;
 		if (task == null) {
-			task = P.p.getServer().getScheduler().runTaskTimer(P.p, this::itemChecking, 1, 1);
+			task = P.p.getServer().getGlobalRegionScheduler().runAtFixedRate(P.p, val -> itemChecking(), 1, 1);
 		}
 	}
 

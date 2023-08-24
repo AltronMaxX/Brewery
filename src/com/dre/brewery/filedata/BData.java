@@ -181,7 +181,7 @@ public class BData {
 
 			final List<World> worlds = P.p.getServer().getWorlds();
 			if (BConfig.loadDataAsync) {
-				P.p.getServer().getScheduler().runTaskAsynchronously(P.p, () -> lwDataTask(worlds));
+				P.p.getServer().getGlobalRegionScheduler().run(P.p, val -> lwDataTask(worlds));
 			} else {
 				lwDataTask(worlds);
 			}
@@ -422,7 +422,7 @@ public class BData {
 		}
 
 		// Merge Loaded Data in Main Thread
-		P.p.getServer().getScheduler().runTask(P.p, () -> {
+		P.p.getServer().getGlobalRegionScheduler().run(P.p, val -> {
 			if (P.p.getServer().getWorld(world.getUID()) == null) {
 				return;
 			}

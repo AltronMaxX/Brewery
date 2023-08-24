@@ -10,11 +10,8 @@ import com.dre.brewery.lore.BrewLore;
 import com.dre.brewery.utility.BUtil;
 import com.dre.brewery.utility.BoundingBox;
 import com.dre.brewery.utility.LegacyUtil;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.Sound;
-import org.bukkit.SoundCategory;
-import org.bukkit.World;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
+import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.HumanEntity;
@@ -24,13 +21,13 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.PotionMeta;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A Multi Block Barrel with Inventory
@@ -46,6 +43,8 @@ public class Barrel implements InventoryHolder {
 	private Inventory inventory;
 	private float time;
 
+	private ScheduledTask updateTask;
+
 	public Barrel(Block spigot, byte signoffset) {
 		this.spigot = spigot;
 		if (isLarge()) {
@@ -54,6 +53,8 @@ public class Barrel implements InventoryHolder {
 			inventory = P.p.getServer().createInventory(this, 9, P.p.languageReader.get("Etc_Barrel"));
 		}
 		body = new BarrelBody(this, signoffset);
+
+		updateTask = Bukkit.getServer().getRegionScheduler().runAtFixedRate(P.p, spigot.getLocation(), val -> onUpdate(), 650, 1200);
 	}
 
 	/**
@@ -85,29 +86,22 @@ public class Barrel implements InventoryHolder {
 		this.time = time;
 
 		body = new BarrelBody(this, sign, bounds, async);
+
+		updateTask = Bukkit.getServer().getRegionScheduler().runAtFixedRate(P.p, spigot.getLocation(), val -> onUpdate(), 650, 1200);
 	}
 
-	public static void onUpdate() {
-		for (Barrel barrel : barrels) {
-			// Minecraft day is 20 min, so add 1/20 to the time every minute
-			barrel.time += (1.0 / 20.0);
-		}
-		int numBarrels = barrels.size();
-		if (check == 0 && numBarrels > 0) {
-			Barrel random = barrels.get((int) Math.floor(Math.random() * numBarrels));
-			if (random != null) {
-				// You have been selected for a random search
-				// We want to check at least one barrel every time
-				random.checked = false;
-			}
-			if (numBarrels > 50) {
-				Barrel randomInTheBack = barrels.get(numBarrels - 1 - (int) (Math.random() * (numBarrels >>> 2)));
-				if (randomInTheBack != null) {
-					// Prioritize checking one of the less recently used barrels as well
-					randomInTheBack.checked = false;
-				}
-			}
-			new BarrelCheck().runTaskTimer(P.p, 1, 1);
+	static ScheduledTask barrelsUpdateTask = null;
+
+	public void onUpdate() {
+		time += (1.0 / 20.0);
+
+		Block broken = body.getBrokenBlock(false);
+		if (broken != null) {
+			P.p.debugLog("Barrel at "
+				+ broken.getWorld().getName() + "/" + broken.getX() + "/" + broken.getY() + "/" + broken.getZ()
+				+ " has been destroyed unexpectedly, contents will drop");
+			// remove the barrel if it was destroyed
+			remove(broken, null, true);
 		}
 	}
 
@@ -428,6 +422,7 @@ public class Barrel implements InventoryHolder {
 			}
 		}
 
+		updateTask.cancel();
 		barrels.remove(this);
 	}
 
@@ -550,39 +545,4 @@ public class Barrel implements InventoryHolder {
 			}
 		}
 	}
-
-	public static class BarrelCheck extends BukkitRunnable {
-		@Override
-		public void run() {
-			boolean repeat = true;
-			while (repeat) {
-				if (check < barrels.size()) {
-					Barrel barrel = barrels.get(check);
-					if (!barrel.checked) {
-						Block broken = barrel.body.getBrokenBlock(false);
-						if (broken != null) {
-							P.p.debugLog("Barrel at "
-								+ broken.getWorld().getName() + "/" + broken.getX() + "/" + broken.getY() + "/" + broken.getZ()
-								+ " has been destroyed unexpectedly, contents will drop");
-							// remove the barrel if it was destroyed
-							barrel.remove(broken, null, true);
-						} else {
-							// Dont check this barrel again, its enough to check it once after every restart (and when randomly chosen)
-							// as now this is only the backup if we dont register the barrel breaking,
-							// for example when removing it with some world editor
-							barrel.checked = true;
-						}
-						repeat = false;
-					}
-					check++;
-				} else {
-					check = 0;
-					repeat = false;
-					cancel();
-				}
-			}
-		}
-
-	}
-
 }

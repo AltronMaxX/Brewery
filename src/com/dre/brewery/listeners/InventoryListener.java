@@ -164,7 +164,7 @@ public class InventoryListener implements Listener {
 							case MOVE_TO_OTHER_INVENTORY:
 							case HOTBAR_SWAP:
 								// Fix a Graphical glitch of item still showing colors until clicking it
-								P.p.getServer().getScheduler().runTask(P.p, () -> ((Player) event.getWhoClicked()).updateInventory());
+								P.p.getServer().getGlobalRegionScheduler().run(P.p, val -> ((Player) event.getWhoClicked()).updateInventory());
 						}
 					}
 				}
