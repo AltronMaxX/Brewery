@@ -1,3 +1,5 @@
+# Only for Folia!
+
 ### Brewery is a Minecraft-Plugin for an alternate brewing process, including alcoholic Potions.
 
 [![Build Status](https://github.com/DieReicheErethons/Brewery/actions/workflows/maven.yml/badge.svg)](https://github.com/DieReicheErethons/Brewery/actions/workflows/maven.yml)
