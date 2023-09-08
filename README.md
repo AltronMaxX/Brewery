@@ -1,6 +1,6 @@
 # Only for Folia!
 
-### Brewery is a Minecraft-Plugin for an alternate brewing process, including alcoholic Potions.
+## Brewery is a Minecraft-Plugin for an alternate brewing process, including alcoholic Potions.
 
 [![Build Status](https://github.com/DieReicheErethons/Brewery/actions/workflows/maven.yml/badge.svg)](https://github.com/DieReicheErethons/Brewery/actions/workflows/maven.yml)
 ![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue)
@@ -8,18 +8,18 @@
 
 ***
 
-#### Find the Project Page on [Spigot](https://www.spigotmc.org/resources/brewery.3082/) or [Bukkit](https://dev.bukkit.org/projects/brewery)
+### Find the Project Page on [Spigot](https://www.spigotmc.org/resources/brewery.3082/) or [Bukkit](https://dev.bukkit.org/projects/brewery)
 
-#### Also see  [Wiki](https://github.com/DieReicheErethons/Brewery/wiki) | [Releases](https://github.com/DieReicheErethons/Brewery/releases) | [Changelog](https://github.com/DieReicheErethons/Brewery/wiki/changelog) | [Commits](https://github.com/DieReicheErethons/Brewery/commits/master)
+### Also see  [Wiki](https://github.com/DieReicheErethons/Brewery/wiki) | [Releases](https://github.com/DieReicheErethons/Brewery/releases) | [Changelog](https://github.com/DieReicheErethons/Brewery/wiki/changelog) | [Commits](https://github.com/DieReicheErethons/Brewery/commits/master)
 
 
 ***
 
-### JavaDocs
+## JavaDocs
 
 [JavaDocs on Jitpack](https://javadoc.jitpack.io/com/github/DieReicheErethons/Brewery/3.1.1/javadoc/index.html)
 
-### Maven
+## Maven
 
 ```XML
 <repository>
@@ -37,6 +37,6 @@
 
 
 
-### License
+## License
 
 This Project is licensed under GPLv3
